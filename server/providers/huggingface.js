@@ -19,19 +19,17 @@ module.exports = {
     const timer = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+      const res = await fetch(`https://router.huggingface.co/hf-inference/models/${model}/v1/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${key}`,
         },
         body: JSON.stringify({
-          inputs: prompt,
-          parameters: {
-            max_new_tokens: options.max_tokens || 500,
-            temperature: options.temperature || 0.7,
-            return_full_text: false,
-          },
+          model: model,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: options.max_tokens || 500,
+          temperature: options.temperature || 0.7,
         }),
         signal: controller.signal,
       });
@@ -42,14 +40,8 @@ module.exports = {
       }
 
       const data = await res.json();
-      let text;
-      if (Array.isArray(data) && data[0]?.generated_text) {
-        text = data[0].generated_text;
-      } else if (data.generated_text) {
-        text = data.generated_text;
-      } else {
-        throw new Error('Unexpected HuggingFace response format');
-      }
+      const text = data.choices?.[0]?.message?.content;
+      if (!text) throw new Error('Unexpected HuggingFace response format');
 
       this.requestsToday++;
       return text.trim();

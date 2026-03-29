@@ -25,7 +25,7 @@ module.exports = {
           'Authorization': `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: options.model || 'command-r',
+          model: options.model || 'command-r-08-2024',
           messages: [{ role: 'user', content: prompt }],
           max_tokens: options.max_tokens || 1000,
           temperature: options.temperature || 0.7,
