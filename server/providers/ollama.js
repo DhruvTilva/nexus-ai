@@ -20,7 +20,7 @@ module.exports = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: options.model || 'phi3:mini',
+          model: options.model || process.env.OLLAMA_MODEL || 'llama3.1:8b',
           prompt: prompt,
           stream: false,
           options: {
