@@ -6,6 +6,7 @@ const cloudflare = require('../providers/cloudflare');
 const openrouter = require('../providers/openrouter');
 const ollama = require('../providers/ollama');
 const { getDB } = require('../db/sqlite');
+const { getAllProviderQuotas } = require('../services/stats');
 
 // Default priority order
 const DEFAULT_PRIORITY = ['gemini', 'groq', 'cloudflare', 'huggingface', 'cohere', 'openrouter', 'ollama'];
@@ -20,7 +21,7 @@ const providerMap = {
   ollama,
 };
 
-function initProviders() {
+async function initProviders() {
   // Load saved priority from DB if exists
   const db = getDB();
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('provider_priority');
@@ -44,6 +45,22 @@ function initProviders() {
         }
       }
     } catch (_) {}
+  }
+
+  // Load today's quota counts from Redis into memory
+  // This ensures accurate counts survive restarts and redeploys
+  try {
+    const names = Object.keys(providerMap);
+    const quotas = await getAllProviderQuotas(names);
+    for (const [name, count] of Object.entries(quotas)) {
+      if (providerMap[name]) {
+        providerMap[name].requestsToday = count;
+        providerMap[name].lastResetDate = new Date().toDateString();
+      }
+    }
+    console.log('[Providers] Quota counts loaded from Redis:', quotas);
+  } catch (e) {
+    console.warn('[Providers] Could not load quotas from Redis:', e.message);
   }
 }
 

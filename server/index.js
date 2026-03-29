@@ -4,6 +4,7 @@ const path = require('path');
 const { initDB } = require('./db/sqlite');
 const { initProviders } = require('./config/providers');
 const { initCache } = require('./services/cache');
+const { initStats } = require('./services/stats');
 const corsMiddleware = require('./middleware/cors');
 const askRoutes = require('./routes/ask');
 const adminRoutes = require('./routes/admin');
@@ -33,8 +34,11 @@ async function start() {
     initCache();
     console.log('[Cache] Redis cache initialized');
 
-    initProviders();
-    console.log('[Providers] All providers loaded');
+    initStats();
+    console.log('[Stats] Redis stats tracker initialized');
+
+    await initProviders();
+    console.log('[Providers] All providers loaded with Redis quota counts');
 
     app.listen(PORT, () => {
       console.log(`\n🚀 NexusAI running on http://localhost:${PORT}`);

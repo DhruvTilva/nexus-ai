@@ -1,4 +1,5 @@
 const { getOrderedProviders, getProviderByName } = require('../config/providers');
+const { incrProviderQuota } = require('./stats');
 
 // Health tracking: { providerName: { failures: 0, lastFailure: 0, unhealthyUntil: 0 } }
 const healthState = {};
@@ -53,6 +54,7 @@ async function route(prompt, options = {}) {
     const start = Date.now();
     const response = await provider.ask(prompt, options);
     const latency = Date.now() - start;
+    incrProviderQuota(provider.name); // persist to Redis
     return { response, provider: provider.name, latency };
   }
 
@@ -70,6 +72,7 @@ async function route(prompt, options = {}) {
       const response = await provider.ask(prompt, options);
       const latency = Date.now() - start;
       markSuccess(provider.name);
+      incrProviderQuota(provider.name); // persist to Redis
       return { response, provider: provider.name, latency };
     } catch (err) {
       markFailure(provider.name);

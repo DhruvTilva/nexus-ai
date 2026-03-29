@@ -8,22 +8,34 @@ const { getCacheStats, clearCache } = require('../services/cache');
 const { getHealthStatus } = require('../services/router');
 const { route } = require('../services/router');
 const { getDB } = require('../db/sqlite');
+const { getDailyStats } = require('../services/stats');
 
 // All admin routes require auth
 router.use(adminLimiter);
 router.use(adminAuth);
 
 // Dashboard stats
-router.get('/stats', (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
-    const stats = getStats();
+    const stats = getStats(); // SQLite: hourly chart, recent logs, provider usage
+    const redisStats = await getDailyStats(); // Redis: accurate persistent counters
     const health = getHealthStatus();
     const providers = getAllProviders();
     const activeCount = Object.values(providers).filter(p => p.isEnabled).length;
 
+    // Redis counters override SQLite counts (accurate across restarts)
+    const totalToday  = redisStats.fromRedis ? redisStats.total  : stats.totalToday;
+    const cachedToday = redisStats.fromRedis ? redisStats.cached : stats.cachedToday;
+    const failedToday = redisStats.fromRedis ? redisStats.failed : stats.failedToday;
+    const cacheHitRate = totalToday > 0 ? Math.round((cachedToday / totalToday) * 100) : 0;
+
     res.json({
       success: true,
       ...stats,
+      totalToday,
+      cachedToday,
+      failedToday,
+      cacheHitRate,
       activeProviders: activeCount,
       healthStatus: health,
     });

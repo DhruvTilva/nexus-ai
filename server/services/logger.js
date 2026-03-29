@@ -1,6 +1,12 @@
 const { getDB } = require('../db/sqlite');
+const { incrDailyStat } = require('./stats');
 
 function logRequest({ requestId, prompt, provider, cached, latencyMs, success, error, clientIp, apiKey }) {
+  // Persist counters to Redis (survives restarts & redeploys)
+  incrDailyStat('total');
+  if (cached)   incrDailyStat('cached');
+  if (!success) incrDailyStat('failed');
+
   try {
     const db = getDB();
     db.prepare(`
