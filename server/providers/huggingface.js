@@ -13,7 +13,7 @@ module.exports = {
     const key = process.env.HUGGINGFACE_API_KEY;
     if (!key) throw new Error('HUGGINGFACE_API_KEY not set');
 
-    const model = options.model || 'mistralai/Mistral-7B-Instruct-v0.3';
+    const model = options.model || 'Qwen/Qwen2.5-7B-Instruct';
     const timeout = options.timeout || parseInt(process.env.PROVIDER_TIMEOUT_MS) || 5000;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
