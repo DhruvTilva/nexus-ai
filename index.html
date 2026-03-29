@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <div id="chat"></div>
+  <input id="input" placeholder="Type a message..." style="width:300px" />
+  <button onclick="send()">Send</button>
+  <script>
+    let history = [];
+    async function send() {
+      const input = document.getElementById("input");
+      const userMsg = input.value.trim();
+      if (!userMsg) return;
+      addMessage("You", userMsg);
+      input.value = "";
+      history.push(`User: ${userMsg}`);
+      const fullPrompt = history.join("\n") + "\nAssistant:";
+
+      const res = await fetch("http://localhost:3000/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ""
+        },
+        body: JSON.stringify({ prompt: fullPrompt })
+      });
+      const data = await res.json();
+      const reply = data.response;
+      history.push(`Assistant: ${reply}`);
+
+      addMessage("AI", reply);
+    }
+    function addMessage(sender, text) {
+      const chat = document.getElementById("chat");
+      chat.innerHTML += `<p><b>${sender}:</b> ${text}</p>`;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+NexusAI is a personal AI API gateway built with Node.js and Express.
+It supports 7 free AI providers: Google Gemini, Groq, HuggingFace, Cohere, Cloudflare Workers AI, OpenRouter, and Ollama.
+
+NexusAI uses smart routing to automatically pick the best available provider.
+If one provider fails, it tries the next one in the priority order.
+After 3 failures, a provider is marked unhealthy for 5 minutes and skipped.
+
+All responses are cached using Upstash Redis.
+The cache key is a SHA-256 hash of the normalized prompt.
+Factual questions are cached for 7 days. Time-sensitive questions are cached for 1 hour.
+
+Request deduplication prevents sending the same prompt twice simultaneously.
+If two users send the same prompt at the same time, only one API call is made.
+
+The admin panel is a single HTML file served at /admin-panel.
+It has 7 pages: Dashboard, Providers, Logs, Playground, Settings, Quick Guide, and About.
+The admin panel uses Tailwind CSS loaded from CDN with no build step required.
+
+NexusAI logs every request to a SQLite database.
+Logs include: request ID, prompt, provider used, latency, cache hit, success or failure.
+
+The /ask endpoint accepts POST requests with a JSON body.
+Required field: prompt (string).
+Optional fields: provider (default: auto), max_tokens (default: 1000), temperature (default: 0.7), cache (default: true).
+
+The API requires an x-api-key header for authentication.
+The admin panel requires an x-admin-password header.
+
+NexusAI is deployed on Render.com for the backend.
+The admin panel can be deployed separately on Vercel.
+Redis caching is provided by Upstash free tier (500k commands/month, 256MB).
+
+The project was built by DT as part of DT's Crafted brand.
+It demonstrates skills in Node.js, Express, Redis, SQLite, API design, and AI provider integration.
