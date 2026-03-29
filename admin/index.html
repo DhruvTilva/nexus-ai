@@ -417,6 +417,49 @@
 
         </div>
 
+        <!-- Multi-turn Chat Example -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-1">&#9320; Multi-turn Chat (index.html example)</h3>
+          <p class="text-xs text-gray-500 mb-4">Full working HTML chat — copy this into any <span class="font-mono bg-dark-900 px-1 rounded">index.html</span> file and open in browser.</p>
+          <div class="bg-dark-900 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto">
+            <span class="text-gray-500">&lt;!-- index.html --&gt;</span><br>
+            <span class="text-blue-400">&lt;body&gt;</span><br>
+            &nbsp;&nbsp;<span class="text-blue-400">&lt;div</span> <span class="text-yellow-400">id=</span><span class="text-green-400">"chat"</span><span class="text-blue-400">&gt;&lt;/div&gt;</span><br>
+            &nbsp;&nbsp;<span class="text-blue-400">&lt;input</span> <span class="text-yellow-400">id=</span><span class="text-green-400">"input"</span> <span class="text-yellow-400">placeholder=</span><span class="text-green-400">"Type a message..."</span> <span class="text-blue-400">/&gt;</span><br>
+            &nbsp;&nbsp;<span class="text-blue-400">&lt;button</span> <span class="text-yellow-400">onclick=</span><span class="text-green-400">"send()"</span><span class="text-blue-400">&gt;</span>Send<span class="text-blue-400">&lt;/button&gt;</span><br><br>
+            &nbsp;&nbsp;<span class="text-blue-400">&lt;script&gt;</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">let</span> history = [];<br><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">async function</span> <span class="text-yellow-400">send</span>() {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">const</span> input = document.getElementById(<span class="text-green-400">"input"</span>);<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">const</span> userMsg = input.value.trim();<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">if</span> (!userMsg) <span class="text-blue-400">return</span>;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;addMessage(<span class="text-green-400">"You"</span>, userMsg);<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input.value = <span class="text-green-400">""</span>;<br><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;history.push(<span class="text-green-400">`User: ${userMsg}`</span>);<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">const</span> fullPrompt = history.join(<span class="text-green-400">"\n"</span>) + <span class="text-green-400">"\nAssistant:"</span>;<br><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">const</span> res = <span class="text-blue-400">await</span> fetch(<span class="text-green-400">"https://nexus-ai-tobh.onrender.com/ask"</span>, {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;method: <span class="text-green-400">"POST"</span>,<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;headers: { <span class="text-green-400">"Content-Type"</span>: <span class="text-green-400">"application/json"</span>, <span class="text-green-400">"x-api-key"</span>: <span class="text-green-400">"dt-ask"</span> },<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;body: JSON.stringify({ prompt: fullPrompt })<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;});<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">const</span> data = <span class="text-blue-400">await</span> res.json();<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;history.push(<span class="text-green-400">`Assistant: ${data.response}`</span>);<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;addMessage(<span class="text-green-400">"AI"</span>, data.response);<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;}<br><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-400">function</span> <span class="text-yellow-400">addMessage</span>(sender, text) {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;document.getElementById(<span class="text-green-400">"chat"</span>).innerHTML +=<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-green-400">`&lt;p&gt;&lt;b&gt;${sender}:&lt;/b&gt; ${text}&lt;/p&gt;`</span>;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+            &nbsp;&nbsp;<span class="text-blue-400">&lt;/script&gt;</span><br>
+            <span class="text-blue-400">&lt;/body&gt;</span>
+          </div>
+          <div class="mt-3 text-xs text-gray-500 space-y-1">
+            <div>&#9679; <span class="text-white">history[]</span> — stores full conversation so AI remembers context</div>
+            <div>&#9679; <span class="text-white">fullPrompt</span> — sends entire chat history with each request</div>
+            <div>&#9679; Replace <span class="font-mono text-yellow-400">dt-ask</span> with your actual API key from <span class="font-mono bg-dark-900 px-1 rounded">ALLOWED_API_KEYS</span></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
