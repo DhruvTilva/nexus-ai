@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusAI — Admin Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: { 900: '#0f0f14', 800: '#16161d', 700: '#1e1e28', 600: '#2a2a38' },
+            accent: { DEFAULT: '#6c5ce7', light: '#a29bfe' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0f0f14; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .sidebar-link { transition: all 0.2s; }
+    .sidebar-link:hover, .sidebar-link.active { background: #6c5ce720; color: #a29bfe; border-right: 3px solid #6c5ce7; }
+    .stat-card { background: linear-gradient(135deg, #16161d 0%, #1e1e28 100%); }
+    .provider-card { background: #16161d; border: 1px solid #2a2a38; transition: all 0.2s; }
+    .provider-card:hover { border-color: #6c5ce7; }
+    .toggle { position: relative; width: 44px; height: 24px; background: #2a2a38; border-radius: 12px; cursor: pointer; transition: 0.3s; }
+    .toggle.on { background: #6c5ce7; }
+    .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: 0.3s; }
+    .toggle.on::after { left: 22px; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f0f14; }
+    ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 3px; }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 hidden">
+    <div class="bg-dark-800 rounded-2xl p-8 w-96 border border-dark-600">
+      <h2 class="text-xl font-bold mb-1">NexusAI</h2>
+      <p class="text-gray-400 text-sm mb-6">Enter admin password to continue</p>
+      <input id="loginPassword" type="password" placeholder="Admin password"
+        class="w-full p-3 rounded-lg bg-dark-900 border border-dark-600 text-white mb-4 outline-none focus:border-accent">
+      <button onclick="doLogin()" class="w-full py-3 bg-accent rounded-lg font-semibold hover:bg-accent-light transition">Login</button>
+      <p id="loginError" class="text-red-400 text-sm mt-2 hidden">Wrong password</p>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="w-60 bg-dark-800 border-r border-dark-600 flex flex-col flex-shrink-0">
+    <div class="p-5 border-b border-dark-600">
+      <h1 class="text-xl font-bold text-accent">NexusAI</h1>
+      <p class="text-xs text-gray-500 mt-1"></p>
+    </div>
+    <nav class="flex-1 py-4">
+      <a class="sidebar-link active flex items-center gap-3 px-5 py-3 cursor-pointer" data-page="dashboard">
+        <span>&#9632;</span> Dashboard
+      </a>
+      <a class="sidebar-link flex items-center gap-3 px-5 py-3 cursor-pointer" data-page="providers">
+        <span>&#9881;</span> Providers
+      </a>
+      <a class="sidebar-link flex items-center gap-3 px-5 py-3 cursor-pointer" data-page="logs">
+        <span>&#9776;</span> Logs
+      </a>
+      <a class="sidebar-link flex items-center gap-3 px-5 py-3 cursor-pointer" data-page="playground">
+        <span>&#9654;</span> Playground
+      </a>
+      <a class="sidebar-link flex items-center gap-3 px-5 py-3 cursor-pointer" data-page="settings">
+        <span>&#9881;</span> Settings
+      </a>
+      <a class="sidebar-link flex items-center gap-3 px-5 py-3 cursor-pointer" data-page="guide">
+        <span>&#128218;</span> Quick Guide
+      </a>
+      <a class="sidebar-link flex items-center gap-3 px-5 py-3 cursor-pointer" data-page="about">
+        <span>&#9432;</span> About
+      </a>
+    </nav>
+    <div class="p-4 border-t border-dark-600 text-xs text-gray-500 cursor-pointer hover:text-accent-light transition" onclick="navigateTo('about')">DT's Crafted</div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 overflow-y-auto p-8">
+
+    <!-- Dashboard Page -->
+    <div id="page-dashboard" class="page active">
+      <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+
+      <!-- Stat Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card rounded-xl p-5 border border-dark-600">
+          <p class="text-gray-400 text-sm">Requests Today</p>
+          <p id="stat-total" class="text-3xl font-bold mt-1">0</p>
+        </div>
+        <div class="stat-card rounded-xl p-5 border border-dark-600">
+          <p class="text-gray-400 text-sm">Cache Hit Rate</p>
+          <p id="stat-cache" class="text-3xl font-bold mt-1 text-green-400">0%</p>
+        </div>
+        <div class="stat-card rounded-xl p-5 border border-dark-600">
+          <p class="text-gray-400 text-sm">Active Providers</p>
+          <p id="stat-providers" class="text-3xl font-bold mt-1 text-accent-light">0</p>
+        </div>
+        <div class="stat-card rounded-xl p-5 border border-dark-600">
+          <p class="text-gray-400 text-sm">Failed Today</p>
+          <p id="stat-failed" class="text-3xl font-bold mt-1 text-red-400">0</p>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="bg-dark-800 rounded-xl p-5 border border-dark-600">
+          <h3 class="font-semibold mb-4">Requests (Last 24h)</h3>
+          <canvas id="hourlyChart" height="200"></canvas>
+        </div>
+        <div class="bg-dark-800 rounded-xl p-5 border border-dark-600">
+          <h3 class="font-semibold mb-4">Provider Usage</h3>
+          <canvas id="providerChart" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Recent Requests -->
+      <div class="bg-dark-800 rounded-xl p-5 border border-dark-600">
+        <h3 class="font-semibold mb-4">Recent Requests</h3>
+        <table class="w-full text-sm">
+          <thead><tr class="text-gray-400 border-b border-dark-600">
+            <th class="text-left py-2">Time</th>
+            <th class="text-left py-2">Prompt</th>
+            <th class="text-left py-2">Provider</th>
+            <th class="text-left py-2">Cached</th>
+            <th class="text-left py-2">Latency</th>
+          </tr></thead>
+          <tbody id="recentTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Providers Page -->
+    <div id="page-providers" class="page">
+      <h2 class="text-2xl font-bold mb-6">Providers</h2>
+      <div id="providersList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- Logs Page -->
+    <div id="page-logs" class="page">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">Logs</h2>
+        <button onclick="exportLogs()" class="px-4 py-2 bg-dark-700 rounded-lg border border-dark-600 text-sm hover:border-accent transition">Export CSV</button>
+      </div>
+      <!-- Filters -->
+      <div class="flex gap-3 mb-4 flex-wrap">
+        <input id="logSearch" type="text" placeholder="Search prompts..." class="px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-sm outline-none focus:border-accent w-64">
+        <select id="logProvider" class="px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-sm outline-none">
+          <option value="">All Providers</option>
+        </select>
+        <select id="logCached" class="px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-sm outline-none">
+          <option value="">All</option><option value="true">Cached</option><option value="false">Uncached</option>
+        </select>
+        <button onclick="loadLogs()" class="px-4 py-2 bg-accent rounded-lg text-sm font-semibold hover:bg-accent-light transition">Filter</button>
+      </div>
+      <div class="bg-dark-800 rounded-xl border border-dark-600 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-gray-400 border-b border-dark-600">
+            <th class="text-left p-3">Time</th>
+            <th class="text-left p-3">Prompt</th>
+            <th class="text-left p-3">Provider</th>
+            <th class="text-left p-3">Cached</th>
+            <th class="text-left p-3">Latency</th>
+            <th class="text-left p-3">Status</th>
+          </tr></thead>
+          <tbody id="logsTable"></tbody>
+        </table>
+      </div>
+      <div class="flex justify-between items-center mt-4">
+        <span id="logsPagination" class="text-sm text-gray-400"></span>
+        <div class="flex gap-2">
+          <button onclick="logsPage--; loadLogs()" class="px-3 py-1 bg-dark-700 rounded text-sm border border-dark-600">Prev</button>
+          <button onclick="logsPage++; loadLogs()" class="px-3 py-1 bg-dark-700 rounded text-sm border border-dark-600">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Playground Page -->
+    <div id="page-playground" class="page">
+      <h2 class="text-2xl font-bold mb-6">Playground</h2>
+      <div class="max-w-2xl">
+        <textarea id="pgPrompt" rows="4" placeholder="Type your prompt here..."
+          class="w-full p-4 bg-dark-800 border border-dark-600 rounded-xl text-sm outline-none focus:border-accent resize-none mb-4"></textarea>
+        <div class="flex gap-3 mb-4">
+          <select id="pgProvider" class="px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-sm outline-none flex-1">
+            <option value="auto">Auto (Smart Routing)</option>
+          </select>
+          <button onclick="runPlayground()" id="pgSend" class="px-6 py-2 bg-accent rounded-lg font-semibold hover:bg-accent-light transition">Send</button>
+        </div>
+        <div id="pgResult" class="bg-dark-800 border border-dark-600 rounded-xl p-5 min-h-[120px] hidden">
+          <div class="flex gap-4 mb-3 text-xs text-gray-400">
+            <span id="pgMeta"></span>
+          </div>
+          <div id="pgResponse" class="text-sm leading-relaxed whitespace-pre-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Page -->
+    <div id="page-settings" class="page">
+      <h2 class="text-2xl font-bold mb-6">Settings</h2>
+      <div class="max-w-xl space-y-6">
+        <div class="bg-dark-800 rounded-xl p-5 border border-dark-600">
+          <h3 class="font-semibold mb-4">Cache</h3>
+          <div class="flex justify-between items-center mb-3">
+            <span class="text-sm text-gray-400">Cached Keys</span>
+            <span id="cacheKeysCount" class="font-mono">0</span>
+          </div>
+          <button onclick="doClearCache()" class="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/30 transition">Clear All Cache</button>
+        </div>
+        <div class="bg-dark-800 rounded-xl p-5 border border-dark-600">
+          <h3 class="font-semibold mb-4">Provider Priority</h3>
+          <p class="text-xs text-gray-400 mb-3">Drag to reorder (top = highest priority)</p>
+          <ul id="priorityList" class="space-y-2"></ul>
+          <button onclick="savePriority()" class="mt-4 px-4 py-2 bg-accent rounded-lg text-sm font-semibold hover:bg-accent-light transition">Save Priority</button>
+        </div>
+        <div class="bg-dark-800 rounded-xl p-5 border border-dark-600">
+          <h3 class="font-semibold mb-4">Config (from .env)</h3>
+          <div id="settingsDisplay" class="space-y-2 text-sm"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Guide Page -->
+    <div id="page-guide" class="page">
+      <h2 class="text-2xl font-bold mb-2">Quick Guide</h2>
+      <p class="text-gray-400 text-sm mb-6">How to use NexusAI from anywhere.</p>
+
+      <div class="max-w-3xl space-y-6">
+
+        <!-- Step 1: The one thing you need -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-3">&#9312; The only thing you need</h3>
+          <p class="text-sm text-gray-400 mb-3">Every request needs 2 things in the header:</p>
+          <div class="bg-dark-900 rounded-lg p-4 font-mono text-sm space-y-1">
+            <div><span class="text-yellow-400">x-api-key</span><span class="text-gray-500"> : </span><span class="text-green-400">mykey1</span></div>
+            <div><span class="text-yellow-400">Content-Type</span><span class="text-gray-500"> : </span><span class="text-green-400">application/json</span></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-3">Your API keys are set in <code class="bg-dark-900 px-1 rounded">.env → ALLOWED_API_KEYS</code></p>
+        </div>
+
+        <!-- Postman -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-4">&#9313; Test in Postman</h3>
+          <div class="space-y-3 text-sm">
+            <div class="flex gap-3 items-start">
+              <span class="bg-accent/20 text-accent-light rounded px-2 py-0.5 text-xs font-mono shrink-0">1</span>
+              <span class="text-gray-400">Method: <span class="text-white font-semibold">POST</span> &nbsp;|&nbsp; URL: <span class="text-green-400 font-mono">http://localhost:3000/ask</span></span>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="bg-accent/20 text-accent-light rounded px-2 py-0.5 text-xs font-mono shrink-0">2</span>
+              <span class="text-gray-400">Go to <span class="text-white">Headers</span> tab → add: <span class="font-mono text-yellow-400">x-api-key</span> = <span class="font-mono text-green-400">mykey1</span></span>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="bg-accent/20 text-accent-light rounded px-2 py-0.5 text-xs font-mono shrink-0">3</span>
+              <span class="text-gray-400">Go to <span class="text-white">Body</span> → select <span class="text-white">raw</span> → select <span class="text-white">JSON</span></span>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="bg-accent/20 text-accent-light rounded px-2 py-0.5 text-xs font-mono shrink-0">4</span>
+              <span class="text-gray-400">Paste this body and hit <span class="text-white font-semibold">Send</span></span>
+            </div>
+          </div>
+          <div class="bg-dark-900 rounded-lg p-4 font-mono text-sm mt-3 text-gray-300">
+            {<br>
+            &nbsp;&nbsp;<span class="text-yellow-400">"prompt"</span>: <span class="text-green-400">"What is AI?"</span>,<br>
+            &nbsp;&nbsp;<span class="text-yellow-400">"provider"</span>: <span class="text-green-400">"auto"</span><br>
+            }
+          </div>
+        </div>
+
+        <!-- PowerShell -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-3">&#9314; Test in PowerShell</h3>
+          <p class="text-xs text-gray-500 mb-2">PowerShell doesn't support Unix curl — use this instead:</p>
+          <div class="bg-dark-900 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto">
+            Invoke-RestMethod -Uri "http://localhost:3000/ask" `<br>
+            &nbsp;&nbsp;-Method POST `<br>
+            &nbsp;&nbsp;-Headers @{"Content-Type"="application/json"; "x-api-key"="mykey1"} `<br>
+            &nbsp;&nbsp;-Body '{"prompt": "What is AI?"}'
+          </div>
+        </div>
+
+        <!-- curl (Git Bash / Linux / Mac) -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-3">&#9315; Test with curl (Git Bash / Linux / Mac)</h3>
+          <div class="bg-dark-900 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto">
+            curl -X POST http://localhost:3000/ask \<br>
+            &nbsp;&nbsp;-H "Content-Type: application/json" \<br>
+            &nbsp;&nbsp;-H "x-api-key: mykey1" \<br>
+            &nbsp;&nbsp;-d '{"prompt": "What is AI?"}'
+          </div>
+        </div>
+
+        <!-- JavaScript fetch -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-3">&#9316; Use in any Website / JS app</h3>
+          <div class="bg-dark-900 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto">
+            <span class="text-blue-400">const</span> res = <span class="text-blue-400">await</span> fetch(<span class="text-green-400">"http://localhost:3000/ask"</span>, {<br>
+            &nbsp;&nbsp;method: <span class="text-green-400">"POST"</span>,<br>
+            &nbsp;&nbsp;headers: {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-green-400">"Content-Type"</span>: <span class="text-green-400">"application/json"</span>,<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-green-400">"x-api-key"</span>: <span class="text-green-400">"mykey1"</span><br>
+            &nbsp;&nbsp;},<br>
+            &nbsp;&nbsp;body: JSON.stringify({ prompt: <span class="text-green-400">"What is AI?"</span> })<br>
+            });<br>
+            <span class="text-blue-400">const</span> data = <span class="text-blue-400">await</span> res.json();<br>
+            console.log(data.response); <span class="text-gray-500">// AI answer here</span>
+          </div>
+        </div>
+
+        <!-- Python -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-3">&#9317; Use in Python</h3>
+          <div class="bg-dark-900 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto">
+            <span class="text-blue-400">import</span> requests<br><br>
+            res = requests.post(<span class="text-green-400">"http://localhost:3000/ask"</span>,<br>
+            &nbsp;&nbsp;headers={<span class="text-green-400">"x-api-key"</span>: <span class="text-green-400">"mykey1"</span>},<br>
+            &nbsp;&nbsp;json={<span class="text-green-400">"prompt"</span>: <span class="text-green-400">"What is AI?"</span>}<br>
+            )<br>
+            <span class="text-blue-400">print</span>(res.json()[<span class="text-green-400">"response"</span>])
+          </div>
+        </div>
+
+        <!-- Response explained -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-3">&#9318; Understanding the Response</h3>
+          <div class="bg-dark-900 rounded-lg p-4 font-mono text-xs text-gray-300 leading-relaxed">
+            {<br>
+            &nbsp;&nbsp;<span class="text-yellow-400">"success"</span>: <span class="text-blue-400">true</span>,<br>
+            &nbsp;&nbsp;<span class="text-yellow-400">"response"</span>: <span class="text-green-400">"AI is..."</span>, &nbsp;<span class="text-gray-500">← your answer</span><br>
+            &nbsp;&nbsp;<span class="text-yellow-400">"provider"</span>: <span class="text-green-400">"gemini"</span>, &nbsp;<span class="text-gray-500">← which AI answered</span><br>
+            &nbsp;&nbsp;<span class="text-yellow-400">"cached"</span>: <span class="text-blue-400">false</span>, &nbsp;<span class="text-gray-500">← true = instant from cache</span><br>
+            &nbsp;&nbsp;<span class="text-yellow-400">"latency_ms"</span>: <span class="text-blue-400">1200</span> &nbsp;<span class="text-gray-500">← response time</span><br>
+            }
+          </div>
+        </div>
+
+        <!-- Optional params -->
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold text-accent-light mb-4">&#9319; Optional Parameters — How to Change Them</h3>
+
+          <!-- provider -->
+          <div class="mb-5">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-mono text-yellow-400 text-sm">provider</span>
+              <span class="text-xs text-gray-500">— which AI to use. Default: auto</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">Pick one: <span class="font-mono bg-dark-900 px-1 rounded">gemini</span> <span class="font-mono bg-dark-900 px-1 rounded">groq</span> <span class="font-mono bg-dark-900 px-1 rounded">huggingface</span> <span class="font-mono bg-dark-900 px-1 rounded">cohere</span> <span class="font-mono bg-dark-900 px-1 rounded">cloudflare</span> <span class="font-mono bg-dark-900 px-1 rounded">openrouter</span> <span class="font-mono bg-dark-900 px-1 rounded">ollama</span></p>
+            <div class="bg-dark-900 rounded-lg p-3 font-mono text-xs text-gray-300">
+              {<br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"prompt"</span>: <span class="text-green-400">"What is AI?"</span>,<br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"provider"</span>: <span class="text-green-400">"groq"</span> &nbsp;<span class="text-gray-500">← force use Groq only</span><br>
+              }
+            </div>
+          </div>
+
+          <!-- max_tokens -->
+          <div class="mb-5">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-mono text-yellow-400 text-sm">max_tokens</span>
+              <span class="text-xs text-gray-500">— how long the answer can be. Default: 1000</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">Lower = shorter answer, faster. Higher = longer answer.</p>
+            <div class="bg-dark-900 rounded-lg p-3 font-mono text-xs text-gray-300">
+              {<br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"prompt"</span>: <span class="text-green-400">"Explain quantum computing"</span>,<br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"max_tokens"</span>: <span class="text-blue-400">500</span> &nbsp;<span class="text-gray-500">← short answer</span><br>
+              }<br>
+              <br>
+              <span class="text-gray-500">// or for a very detailed answer:</span><br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"max_tokens"</span>: <span class="text-blue-400">3000</span>
+            </div>
+          </div>
+
+          <!-- temperature -->
+          <div class="mb-5">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-mono text-yellow-400 text-sm">temperature</span>
+              <span class="text-xs text-gray-500">— creativity level. Default: 0.7</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-xs mb-2">
+              <div class="bg-dark-900 rounded p-2 text-center"><div class="text-blue-400 font-mono font-bold">0.0 – 0.3</div><div class="text-gray-500 mt-1">Factual, precise<br>Good for: code, math</div></div>
+              <div class="bg-dark-900 rounded p-2 text-center"><div class="text-green-400 font-mono font-bold">0.5 – 0.7</div><div class="text-gray-500 mt-1">Balanced<br>Good for: general Q&A</div></div>
+              <div class="bg-dark-900 rounded p-2 text-center"><div class="text-yellow-400 font-mono font-bold">0.8 – 1.0</div><div class="text-gray-500 mt-1">Creative, varied<br>Good for: stories, ideas</div></div>
+            </div>
+            <div class="bg-dark-900 rounded-lg p-3 font-mono text-xs text-gray-300">
+              {<br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"prompt"</span>: <span class="text-green-400">"Write a poem about space"</span>,<br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"temperature"</span>: <span class="text-blue-400">0.9</span> &nbsp;<span class="text-gray-500">← more creative</span><br>
+              }
+            </div>
+          </div>
+
+          <!-- cache -->
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-mono text-yellow-400 text-sm">cache</span>
+              <span class="text-xs text-gray-500">— use cached response. Default: true</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">Set to <span class="text-white">false</span> if you always want a fresh answer (uses API quota).</p>
+            <div class="bg-dark-900 rounded-lg p-3 font-mono text-xs text-gray-300">
+              {<br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"prompt"</span>: <span class="text-green-400">"What is today's news?"</span>,<br>
+              &nbsp;&nbsp;<span class="text-yellow-400">"cache"</span>: <span class="text-blue-400">false</span> &nbsp;<span class="text-gray-500">← always fresh, skip cache</span><br>
+              }
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- About Page -->
+    <div id="page-about" class="page">
+      <h2 class="text-2xl font-bold mb-6">About</h2>
+      <div class="max-w-xl space-y-5">
+
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <div class="flex items-center gap-4 mb-4">
+            <div class="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-white font-bold text-xl">N</div>
+            <div>
+              <h3 class="text-lg font-bold text-accent-light">NexusAI</h3>
+              <p class="text-xs text-gray-500">Smart AI API Router— v1.0.0</p>
+            </div>
+          </div>
+          <p class="text-sm text-gray-400 leading-relaxed">
+            One endpoint. Seven free AI providers. Zero cost. NexusAI routes your prompts intelligently across Gemini, Groq, HuggingFace, Cohere, Cloudflare AI, OpenRouter, and Ollama — with smart fallback, Redis caching, and request deduplication built in.
+          </p>
+        </div>
+
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold mb-4 text-accent-light">Features</h3>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Smart routing with auto-fallback</li>
+            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Redis response caching</li>
+            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Request deduplication</li>
+            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Health tracking per provider</li>
+            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> API key authentication</li>
+            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Rate limiting (30 req/min)</li>
+            <li class="flex items-center gap-2"><span class="text-green-400">&#10003;</span> Full request logging (SQLite)</li>
+          </ul>
+        </div>
+
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold mb-3 text-accent-light">Tech Stack</h3>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="bg-dark-900 rounded-lg px-3 py-2 text-gray-400">Node.js + Express</div>
+            <div class="bg-dark-900 rounded-lg px-3 py-2 text-gray-400">SQLite (better-sqlite3)</div>
+            <div class="bg-dark-900 rounded-lg px-3 py-2 text-gray-400">Upstash Redis</div>
+            <div class="bg-dark-900 rounded-lg px-3 py-2 text-gray-400">Tailwind CSS</div>
+          </div>
+        </div>
+
+        <div class="bg-dark-800 rounded-xl p-6 border border-dark-600">
+          <h3 class="font-semibold mb-1 text-accent-light">Crafted by</h3>
+          <p class="text-2xl font-bold text-white mt-2">DT</p>
+          <p class="text-xs text-gray-500 mt-1">Built with care. Runs for free.</p>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script src="utils/api.js"></script>
+  <script>
+    // --- Navigation ---
+    let currentPage = 'dashboard';
+    function navigateTo(page) {
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.sidebar-link[data-page="${page}"]`);
+      if (link) link.classList.add('active');
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + page).classList.add('active');
+      currentPage = page;
+      loadPage(page);
+    }
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      link.addEventListener('click', () => navigateTo(link.dataset.page));
+    });
+
+    // --- Login ---
+    function showLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); }
+    function hideLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+    async function doLogin() {
+      const pwd = document.getElementById('loginPassword').value;
+      setAdminPassword(pwd);
+      try {
+        await adminAPI.getStats();
+        hideLoginModal();
+        loadPage('dashboard');
+      } catch {
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+    document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+    // --- Page Loaders ---
+    let hourlyChartInstance = null;
+    let providerChartInstance = null;
+
+    async function loadPage(page) {
+      try {
+        if (page === 'dashboard') await loadDashboard();
+        else if (page === 'providers') await loadProviders();
+        else if (page === 'logs') await loadLogs();
+        else if (page === 'playground') await loadPlaygroundProviders();
+        else if (page === 'settings') await loadSettings();
+      } catch (err) {
+        console.error('Page load error:', err);
+      }
+    }
+
+    // --- Dashboard ---
+    async function loadDashboard() {
+      const data = await adminAPI.getStats();
+      document.getElementById('stat-total').textContent = data.totalToday || 0;
+      document.getElementById('stat-cache').textContent = (data.cacheHitRate || 0) + '%';
+      document.getElementById('stat-providers').textContent = data.activeProviders || 0;
+      document.getElementById('stat-failed').textContent = data.failedToday || 0;
+
+      // Hourly chart
+      const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+      const hourlyData = hours.map(h => {
+        const found = (data.hourlyRequests || []).find(r => r.hour === h);
+        return found ? found.count : 0;
+      });
+      if (hourlyChartInstance) hourlyChartInstance.destroy();
+      hourlyChartInstance = new Chart(document.getElementById('hourlyChart'), {
+        type: 'line',
+        data: {
+          labels: hours,
+          datasets: [{ label: 'Requests', data: hourlyData, borderColor: '#6c5ce7', backgroundColor: '#6c5ce720', fill: true, tension: 0.4 }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#666' }, grid: { color: '#1e1e28' } }, y: { ticks: { color: '#666' }, grid: { color: '#1e1e28' } } } }
+      });
+
+      // Provider chart
+      const puLabels = (data.providerUsage || []).map(p => p.provider);
+      const puData = (data.providerUsage || []).map(p => p.count);
+      const colors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e17055', '#00b894', '#0984e3', '#d63031'];
+      if (providerChartInstance) providerChartInstance.destroy();
+      providerChartInstance = new Chart(document.getElementById('providerChart'), {
+        type: 'doughnut',
+        data: { labels: puLabels, datasets: [{ data: puData, backgroundColor: colors }] },
+        options: { plugins: { legend: { position: 'bottom', labels: { color: '#999' } } } }
+      });
+
+      // Recent table
+      const tbody = document.getElementById('recentTable');
+      tbody.innerHTML = (data.recentRequests || []).map(r => `
+        <tr class="border-b border-dark-700">
+          <td class="py-2 text-gray-400">${new Date(r.timestamp).toLocaleTimeString()}</td>
+          <td class="py-2">${(r.prompt || '').slice(0, 50)}${(r.prompt || '').length > 50 ? '...' : ''}</td>
+          <td class="py-2"><span class="px-2 py-0.5 bg-dark-600 rounded text-xs">${r.provider_used || '-'}</span></td>
+          <td class="py-2">${r.cached ? '<span class="text-green-400">Yes</span>' : '<span class="text-gray-500">No</span>'}</td>
+          <td class="py-2 text-gray-400">${r.latency_ms}ms</td>
+        </tr>
+      `).join('');
+    }
+
+    // --- Providers ---
+    async function loadProviders() {
+      const data = await adminAPI.getProviders();
+      const container = document.getElementById('providersList');
+      container.innerHTML = (data.providers || []).map(p => {
+        const pct = p.dailyLimit > 0 ? Math.round((p.requestsToday / p.dailyLimit) * 100) : 0;
+        const healthy = p.health?.healthy !== false;
+        return `
+          <div class="provider-card rounded-xl p-5">
+            <div class="flex justify-between items-start mb-3">
+              <div>
+                <h4 class="font-semibold">${p.displayName}</h4>
+                <span class="text-xs ${healthy ? 'text-green-400' : 'text-red-400'}">${healthy ? 'Healthy' : 'Unhealthy'}</span>
+              </div>
+              <div class="toggle ${p.enabled ? 'on' : ''}" onclick="toggleProvider('${p.name}', ${!p.enabled})"></div>
+            </div>
+            <div class="mb-2">
+              <div class="flex justify-between text-xs text-gray-400 mb-1">
+                <span>${p.requestsToday} / ${p.dailyLimit}</span>
+                <span>${pct}%</span>
+              </div>
+              <div class="w-full h-2 bg-dark-900 rounded-full">
+                <div class="h-2 bg-accent rounded-full transition-all" style="width: ${Math.min(pct, 100)}%"></div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500">Remaining: ${p.quotaRemaining}</p>
+          </div>`;
+      }).join('');
+    }
+
+    async function toggleProvider(name, enabled) {
+      await adminAPI.updateProvider(name, { enabled });
+      loadProviders();
+    }
+
+    // --- Logs ---
+    let logsPage = 0;
+    async function loadLogs() {
+      const params = { limit: 30, offset: logsPage * 30 };
+      const search = document.getElementById('logSearch')?.value;
+      const provider = document.getElementById('logProvider')?.value;
+      const cached = document.getElementById('logCached')?.value;
+      if (search) params.search = search;
+      if (provider) params.provider = provider;
+      if (cached) params.cached = cached;
+
+      const data = await adminAPI.getLogs(params);
+      document.getElementById('logsPagination').textContent = `Showing ${data.rows?.length || 0} of ${data.total || 0}`;
+      document.getElementById('logsTable').innerHTML = (data.rows || []).map(r => `
+        <tr class="border-b border-dark-700 hover:bg-dark-700/50">
+          <td class="p-3 text-gray-400 whitespace-nowrap">${new Date(r.timestamp).toLocaleString()}</td>
+          <td class="p-3 max-w-xs truncate">${r.prompt || '-'}</td>
+          <td class="p-3"><span class="px-2 py-0.5 bg-dark-600 rounded text-xs">${r.provider_used || '-'}</span></td>
+          <td class="p-3">${r.cached ? '<span class="text-green-400 text-xs">Cached</span>' : '<span class="text-gray-500 text-xs">No</span>'}</td>
+          <td class="p-3 text-gray-400">${r.latency_ms}ms</td>
+          <td class="p-3">${r.success ? '<span class="text-green-400 text-xs">OK</span>' : '<span class="text-red-400 text-xs">Fail</span>'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportLogs() {
+      const pwd = getAdminPassword();
+      window.open(`${API_BASE}/admin/logs/export?password=${encodeURIComponent(pwd)}`);
+    }
+
+    // --- Playground ---
+    async function loadPlaygroundProviders() {
+      const data = await adminAPI.getProviders();
+      const select = document.getElementById('pgProvider');
+      select.innerHTML = '<option value="auto">Auto (Smart Routing)</option>';
+      (data.providers || []).filter(p => p.enabled).forEach(p => {
+        select.innerHTML += `<option value="${p.name}">${p.displayName}</option>`;
+      });
+    }
+
+    async function runPlayground() {
+      const prompt = document.getElementById('pgPrompt').value.trim();
+      if (!prompt) return;
+      const provider = document.getElementById('pgProvider').value;
+      const btn = document.getElementById('pgSend');
+      btn.disabled = true; btn.textContent = 'Sending...';
+
+      try {
+        const data = await adminAPI.playground({ prompt, provider });
+        document.getElementById('pgResult').classList.remove('hidden');
+        document.getElementById('pgMeta').textContent = `Provider: ${data.provider} | Latency: ${data.latency_ms}ms`;
+        document.getElementById('pgResponse').textContent = data.response || data.error || 'No response';
+      } catch (err) {
+        document.getElementById('pgResult').classList.remove('hidden');
+        document.getElementById('pgResponse').textContent = 'Error: ' + err.message;
+      }
+      btn.disabled = false; btn.textContent = 'Send';
+    }
+
+    // --- Settings ---
+    async function loadSettings() {
+      const [settings, cache] = await Promise.all([adminAPI.getSettings(), adminAPI.getCacheStats()]);
+      document.getElementById('cacheKeysCount').textContent = cache.keys || 0;
+
+      const s = settings.settings || {};
+      document.getElementById('settingsDisplay').innerHTML = Object.entries(s)
+        .filter(([k]) => k !== 'providerPriority')
+        .map(([k, v]) => `<div class="flex justify-between py-1 border-b border-dark-700"><span class="text-gray-400">${k}</span><span class="font-mono">${v}</span></div>`)
+        .join('');
+
+      const list = document.getElementById('priorityList');
+      list.innerHTML = (s.providerPriority || []).map((name, i) => `
+        <li class="flex items-center gap-3 bg-dark-900 rounded-lg px-4 py-2 cursor-move" draggable="true" data-name="${name}">
+          <span class="text-gray-500 text-sm">${i + 1}.</span>
+          <span>${name}</span>
+        </li>
+      `).join('');
+      initDragSort(list);
+    }
+
+    async function doClearCache() {
+      if (!confirm('Clear all cached responses?')) return;
+      await adminAPI.clearCache();
+      loadSettings();
+    }
+
+    async function savePriority() {
+      const items = document.querySelectorAll('#priorityList li');
+      const priority = Array.from(items).map(li => li.dataset.name);
+      await adminAPI.updatePriority(priority);
+      alert('Priority saved!');
+    }
+
+    // Simple drag sort
+    function initDragSort(list) {
+      let dragEl = null;
+      list.addEventListener('dragstart', e => { dragEl = e.target; e.target.style.opacity = '0.4'; });
+      list.addEventListener('dragend', e => { e.target.style.opacity = '1'; });
+      list.addEventListener('dragover', e => { e.preventDefault(); });
+      list.addEventListener('drop', e => {
+        e.preventDefault();
+        const target = e.target.closest('li');
+        if (target && dragEl !== target) {
+          const all = [...list.children];
+          const from = all.indexOf(dragEl);
+          const to = all.indexOf(target);
+          if (from < to) target.after(dragEl);
+          else target.before(dragEl);
+          // Update numbers
+          [...list.children].forEach((li, i) => { li.querySelector('span').textContent = (i + 1) + '.'; });
+        }
+      });
+    }
+
+    // --- Init ---
+    (async () => {
+      try {
+        await loadDashboard();
+      } catch {
+        showLoginModal();
+      }
+    })();
+  </script>
+</body>
+</html>
