@@ -19,7 +19,7 @@ module.exports = {
     const timer = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const res = await fetch(`https://router.huggingface.co/hf-inference/models/${model}/v1/chat/completions`, {
+      const res = await fetch(`https://router.huggingface.co/v1/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
